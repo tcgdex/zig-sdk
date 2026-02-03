@@ -3,34 +3,17 @@
 
 const graphqlz = @import("graphqlz");
 
+pub const Booster = @import("types/Booster.zig");
+pub const Card = @import("types/card.zig").Card;
+pub const Image = @import("types/Image.zig");
+pub const Iterator = @import("query.zig").Iterator;
 pub const Language = @import("language.zig").Language;
+pub const Legality = @import("types/Legality.zig");
+pub const Pricing = @import("types/Pricing.zig");
+pub const Serie = @import("types/Serie.zig");
+pub const Set = @import("types/Set.zig");
 
-const card = @import("types/card.zig");
-const serie = @import("types/serie.zig");
-const set = @import("types/set.zig");
-
-pub fn For(comptime language: Language) type {
-    return struct {
-        // language-agnostic types
-        pub const Ability = card.Ability;
-        pub const Attack = card.Attack;
-        pub const Booster = @import("types/Booster.zig");
-        pub const CardCount = set.CardCount;
-        pub const Damage = card.Damage;
-        pub const DexId = card.DexId;
-        pub const Effectiveness = card.Effectiveness;
-        pub const Image = @import("types/Image.zig");
-        pub const Legality = @import("types/Legality.zig");
-        pub const VariantDetailed = card.VariantDetailed;
-        pub const Variants = card.Variants;
-        pub const Pricing = @import("types/Pricing.zig");
-
-        // language-specific types
-        pub const Iterator = @import("query.zig").Query(language).Iterator;
-        pub const Card = card.Card(language);
-        pub const Serie = serie.Serie(language);
-        pub const Set = set.Set(language);
-    };
-}
-
-pub const graphql = graphqlz.Client("https://api.tcgdex.net/v2/graphql", @import("graphql/schema.zig")).execute;
+pub const graphql = struct {
+    pub const schema = @import("graphql/schema.zig");
+    pub const run = graphqlz.Client("https://api.tcgdex.net/v2/graphql", schema).execute;
+};

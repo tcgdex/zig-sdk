@@ -221,4 +221,3 @@ pub const StringEndpoint = struct {
     cards: []const Card,
     name: String,
 };
-

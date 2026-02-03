@@ -5,14 +5,13 @@ const ParseOptions = std.json.ParseOptions;
 const Writer = std.Io.Writer;
 
 const fmt = @import("../fmt.zig");
-const meta = @import("../meta.zig");
 const Language = @import("../language.zig").Language;
-const Query = @import("../query.zig").Query;
+const query = @import("../query.zig");
 const Category = @import("enums.zig").Category;
 const Booster = @import("Booster.zig");
 const Image = @import("Image.zig");
 const Legality = @import("Legality.zig");
-const Set = @import("set.zig").Set;
+const Set = @import("Set.zig");
 const Pricing = @import("Pricing.zig");
 
 pub const Ability = struct {
@@ -228,421 +227,370 @@ pub const VariantDetailed = struct {
     }
 };
 
-pub fn Card(comptime language: Language) type {
-    const query = Query(language);
+// common args
+const Common = struct {
+    id: []const u8,
+    localId: []const u8,
+    name: []const u8,
+    image: ?Image,
+    illustrator: ?[]const u8,
+    rarity: ?[]const u8,
+    set: Set.Brief,
+    variants: Variants,
+    variant_detailed: ?[]const VariantDetailed,
+    boosters: ?[]const Booster,
+    pricing: ?Pricing,
+    updated: []const u8, // date
+    legal: Legality,
+    regulationMark: ?[]const u8,
 
-    // common args
-    const Common = struct {
-        const C = @This();
+    fn from(value: anytype) Common {
+        return .{
+            .id = value.id,
+            .localId = value.localId,
+            .name = value.name,
+            .image = value.image,
+            .illustrator = value.illustrator,
+            .rarity = value.rarity,
+            .set = value.set,
+            .variants = value.variants,
+            .variant_detailed = value.variant_detailed,
+            .boosters = value.boosters,
+            .pricing = value.pricing,
+            .updated = value.updated,
+            .legal = value.legal,
+            .regulationMark = value.regulationMark,
+        };
+    }
+
+    fn formatFields(value: anytype, writer: *Writer) Writer.Error!void {
+        // for autocompletion in editor to work
+        const self: Common = from(value);
+
+        try writer.print(".id = {s}, .local_id = {s}, .name = {s}", .{
+            self.id,
+            self.localId,
+            self.name,
+        });
+
+        if (self.image) |image| {
+            try writer.print(", .image = {f}", .{image});
+        }
+
+        if (self.illustrator) |illustrator| {
+            try writer.print(", .illustrator = {s}", .{illustrator});
+        }
+
+        if (self.rarity) |rarity| {
+            try writer.print(", .rarity = {s}", .{rarity});
+        }
+
+        try writer.print(", .set = {f}, .variants = {f}", .{ self.set, self.variants });
+
+        if (self.variant_detailed) |detailed| {
+            try writer.print(", .variant_detailed = ", .{});
+            try fmt.printSlice(VariantDetailed, writer, "{f}", detailed);
+        }
+
+        if (self.boosters) |boosters| {
+            try writer.print(", .boosters = ", .{});
+            try fmt.printSlice(Booster, writer, "{f}", boosters);
+        }
+
+        if (self.pricing) |pricing| {
+            try writer.print(", .pricing = {f}", .{pricing});
+        }
+
+        try writer.print(", .updated = {s}", .{self.updated});
+
+        try writer.print(", .legal = {f}", .{self.legal});
+
+        if (self.regulationMark) |regulation_mark| {
+            try writer.print(", .regulationMark = {s}", .{regulation_mark});
+        }
+    }
+};
+
+pub const Card = union(enum) {
+    pub const url = "cards";
+
+    pokemon: Pokemon,
+    trainer: Trainer,
+    energy: Energy,
+
+    pub const Pokemon = struct {
+        const P = @This();
 
         id: []const u8,
         localId: []const u8,
         name: []const u8,
-        image: ?Image,
-        illustrator: ?[]const u8,
-        rarity: ?[]const u8,
-        set: Set(language).Brief,
+        image: ?Image = null,
+        illustrator: ?[]const u8 = null,
+        rarity: ?[]const u8 = null,
+        set: Set.Brief,
         variants: Variants,
-        variant_detailed: ?[]const VariantDetailed,
-        boosters: ?[]const Booster,
-        pricing: ?Pricing,
-        updated: []const u8, // date
+        variant_detailed: ?[]const VariantDetailed = null,
+        boosters: ?[]const Booster = null,
+        pricing: ?Pricing = null,
+        updated: []const u8,
         legal: Legality,
-        regulationMark: ?[]const u8,
+        regulationMark: ?[]const u8 = null,
 
-        fn from(value: anytype) C {
-            return .{
-                .id = value.id,
-                .localId = value.localId,
-                .name = value.name,
-                .image = value.image,
-                .illustrator = value.illustrator,
-                .rarity = value.rarity,
-                .set = value.set,
-                .variants = value.variants,
-                .variant_detailed = value.variant_detailed,
-                .boosters = value.boosters,
-                .pricing = value.pricing,
-                .updated = value.updated,
-                .legal = value.legal,
-                .regulationMark = value.regulationMark,
-            };
-        }
+        //
 
-        fn formatFields(value: anytype, writer: *Writer) Writer.Error!void {
-            // for autocompletion in editor to work
-            const self: C = from(value);
+        dexId: ?DexId = null,
+        hp: ?usize = null,
+        types: ?[]const []const u8 = null,
+        evolveFrom: ?[]const u8 = null,
+        description: ?[]const u8 = null,
+        level: ?[]const u8 = null,
+        stage: ?[]const u8 = null,
+        suffix: ?[]const u8 = null,
+        item: ?Item = null,
+        abilities: ?[]const Ability = null,
+        attacks: ?[]const Attack = null,
+        weaknesses: ?[]const Effectiveness = null,
+        resistances: ?[]const Effectiveness = null,
+        retreat: ?u8 = null,
 
-            try writer.print(".id = {s}, .local_id = {s}, .name = {s}", .{
-                self.id,
-                self.localId,
-                self.name,
-            });
-
-            if (self.image) |image| {
-                try writer.print(", .image = {f}", .{image});
-            }
-
-            if (self.illustrator) |illustrator| {
-                try writer.print(", .illustrator = {s}", .{illustrator});
-            }
-
-            if (self.rarity) |rarity| {
-                try writer.print(", .rarity = {s}", .{rarity});
-            }
-
-            try writer.print(", .set = {f}, .variants = {f}", .{ self.set, self.variants });
-
-            if (self.variant_detailed) |detailed| {
-                try writer.print(", .variant_detailed = ", .{});
-                try fmt.printSlice(VariantDetailed, writer, "{f}", detailed);
-            }
-
-            if (self.boosters) |boosters| {
-                try writer.print(", .boosters = ", .{});
-                try fmt.printSlice(Booster, writer, "{f}", boosters);
-            }
-
-            if (self.pricing) |pricing| {
-                try writer.print(", .pricing = {f}", .{pricing});
-            }
-
-            try writer.print(", .updated = {s}", .{self.updated});
-
-            try writer.print(", .legal = {f}", .{self.legal});
-
-            if (self.regulationMark) |regulation_mark| {
-                try writer.print(", .regulationMark = {s}", .{regulation_mark});
-            }
-        }
-    };
-
-    return union(enum) {
-        const C = @This();
-
-        pub const url = "cards";
-
-        pub const Pokemon = struct {
-            const P = @This();
-
-            __arena: ?*meta.Empty = null,
-
-            id: []const u8,
-            localId: []const u8,
+        const Item = struct {
             name: []const u8,
-            image: ?Image = null,
-            illustrator: ?[]const u8 = null,
-            rarity: ?[]const u8 = null,
-            set: Set(language).Brief,
-            variants: Variants,
-            variant_detailed: ?[]const VariantDetailed = null,
-            boosters: ?[]const Booster = null,
-            pricing: ?Pricing = null,
-            updated: []const u8,
-            legal: Legality,
-            regulationMark: ?[]const u8 = null,
+            effect: []const u8,
 
-            //
-
-            dexId: ?DexId = null,
-            hp: ?usize = null,
-            types: ?[]const []const u8 = null,
-            evolveFrom: ?[]const u8 = null,
-            description: ?[]const u8 = null,
-            level: ?[]const u8 = null,
-            stage: ?[]const u8 = null,
-            suffix: ?[]const u8 = null,
-            item: ?Item = null,
-            abilities: ?[]const Ability = null,
-            attacks: ?[]const Attack = null,
-            weaknesses: ?[]const Effectiveness = null,
-            resistances: ?[]const Effectiveness = null,
-            retreat: ?u8 = null,
-
-            const Item = struct {
-                name: []const u8,
-                effect: []const u8,
-
-                pub fn format(self: Item, writer: *Writer) Writer.Error!void {
-                    try writer.print("{{ .name = {s}, .effect = {s} }}", .{ self.name, self.effect });
-                }
-            };
-
-            pub fn deinit(self: P) void {
-                meta.deinit(P, self);
-            }
-
-            pub fn format(self: P, writer: *Writer) Writer.Error!void {
-                try writer.print("{{ ", .{});
-
-                try Common.formatFields(self, writer);
-
-                if (self.dexId) |dexId| {
-                    try writer.print(", .dexId = {f}", .{dexId});
-                }
-
-                if (self.hp) |hp| {
-                    try writer.print(", .hp = {d}", .{hp});
-                }
-
-                if (self.types) |types| {
-                    try writer.print(", .types = ", .{});
-                    try fmt.printSlice([]const u8, writer, "{s}", types);
-                }
-
-                if (self.evolveFrom) |evolveFrom| {
-                    try writer.print(", .evolveFrom = {s}", .{evolveFrom});
-                }
-
-                if (self.description) |description| {
-                    try writer.print(", .description = {s}", .{description});
-                }
-
-                if (self.level) |level| {
-                    try writer.print(", .level = {s}", .{level});
-                }
-
-                if (self.stage) |stage| {
-                    try writer.print(", .stage = {s}", .{stage});
-                }
-
-                if (self.suffix) |suffix| {
-                    try writer.print(", .suffix = {s}", .{suffix});
-                }
-
-                if (self.item) |item| {
-                    try writer.print(", .item = {f}", .{item});
-                }
-
-                if (self.abilities) |abilities| {
-                    try writer.print(", .abilities = ", .{});
-                    try fmt.printSlice(Ability, writer, "{f}", abilities);
-                }
-
-                if (self.attacks) |attacks| {
-                    try writer.print(", .attacks = ", .{});
-                    try fmt.printSlice(Attack, writer, "{f}", attacks);
-                }
-
-                if (self.weaknesses) |weaknesses| {
-                    try writer.print(", .weaknesses = ", .{});
-                    try fmt.printSlice(Effectiveness, writer, "{f}", weaknesses);
-                }
-
-                if (self.resistances) |resistances| {
-                    try writer.print(", .resistances = ", .{});
-                    try fmt.printSlice(Effectiveness, writer, "{f}", resistances);
-                }
-
-                if (self.retreat) |retreat| {
-                    try writer.print(", .retreat = {d}", .{retreat});
-                }
-
-                try writer.print(" }}", .{});
+            pub fn format(self: Item, writer: *Writer) Writer.Error!void {
+                try writer.print("{{ .name = {s}, .effect = {s} }}", .{ self.name, self.effect });
             }
         };
 
-        pub const Trainer = struct {
-            const T = @This();
+        pub fn format(self: P, writer: *Writer) Writer.Error!void {
+            try writer.print("{{ ", .{});
 
-            __arena: ?*meta.Empty = null,
+            try Common.formatFields(self, writer);
 
-            id: []const u8,
-            localId: []const u8,
-            name: []const u8,
-            image: ?Image = null,
-            illustrator: ?[]const u8 = null,
-            rarity: ?[]const u8 = null,
-            set: Set(language).Brief,
-            variants: Variants,
-            variant_detailed: ?[]const VariantDetailed = null,
-            boosters: ?[]const Booster = null,
-            pricing: ?Pricing = null,
-            updated: []const u8,
-            legal: Legality,
-            regulationMark: ?[]const u8 = null,
-
-            //
-
-            // FIXME: these should be required (?)
-            effect: ?[]const u8 = null,
-            trainerType: ?[]const u8 = null,
-
-            pub fn deinit(self: T) void {
-                meta.deinit(T, self);
+            if (self.dexId) |dexId| {
+                try writer.print(", .dexId = {f}", .{dexId});
             }
 
-            pub fn format(self: T, writer: *Writer) Writer.Error!void {
-                try writer.print("{{ ", .{});
-
-                try Common.formatFields(self, writer);
-
-                if (self.effect) |effect| {
-                    try writer.print(", .effect = {s}", .{effect});
-                }
-
-                if (self.trainerType) |trainerType| {
-                    try writer.print(", .trainerType = {s}", .{trainerType});
-                }
-
-                try writer.print(" }}", .{});
-            }
-        };
-
-        pub const Energy = struct {
-            const E = @This();
-
-            __arena: ?*meta.Empty = null,
-
-            id: []const u8,
-            localId: []const u8,
-            name: []const u8,
-            image: ?Image = null,
-            illustrator: ?[]const u8 = null,
-            rarity: ?[]const u8 = null,
-            set: Set(language).Brief,
-            variants: Variants,
-            variant_detailed: ?[]const VariantDetailed = null,
-            boosters: ?[]const Booster = null,
-            pricing: ?Pricing = null,
-            updated: []const u8,
-            legal: Legality,
-            regulationMark: ?[]const u8 = null,
-
-            //
-
-            effect: ?[]const u8 = null,
-            energyType: []const u8,
-
-            pub fn deinit(self: E) void {
-                meta.deinit(E, self);
+            if (self.hp) |hp| {
+                try writer.print(", .hp = {d}", .{hp});
             }
 
-            pub fn format(self: E, writer: *Writer) Writer.Error!void {
-                try writer.print("{{ ", .{});
-
-                try Common.formatFields(self, writer);
-
-                if (self.effect) |effect| {
-                    try writer.print(", .effect = {s}", .{effect});
-                }
-
-                try writer.print(", .type = {s}", .{self.energyType});
-
-                try writer.print(" }}", .{});
-            }
-        };
-
-        pokemon: Pokemon,
-        trainer: Trainer,
-        energy: Energy,
-
-        pub fn __setArena(self: *C, arena: *meta.Empty) void {
-            switch (self.*) {
-                .pokemon => self.pokemon.__arena = arena,
-                .trainer => self.trainer.__arena = arena,
-                .energy => self.energy.__arena = arena,
-            }
-        }
-
-        pub fn deinit(self: C) void {
-            switch (self) {
-                .pokemon => self.pokemon.deinit(),
-                .trainer => self.trainer.deinit(),
-                .energy => self.energy.deinit(),
-            }
-        }
-
-        pub fn get(allocator: Allocator, params: query.Get) !C {
-            var q: query.Q(C, .one) = .init(allocator, params);
-            return q.run();
-        }
-
-        pub fn all(allocator: Allocator, params: Brief.Params) query.Iterator(Brief) {
-            return Brief.iterator(allocator, params);
-        }
-
-        pub const Brief = struct {
-            pub const url = C.url;
-            pub const Params = query.ParamsFor(Brief);
-
-            __arena: ?*meta.Empty = null,
-
-            id: []const u8,
-            localId: []const u8,
-            name: []const u8,
-            image: ?Image = null,
-
-            pub fn deinit(self: Brief) void {
-                meta.deinit(Brief, self);
+            if (self.types) |types| {
+                try writer.print(", .types = ", .{});
+                try fmt.printSlice([]const u8, writer, "{s}", types);
             }
 
-            pub fn get(allocator: Allocator, params: query.Get) !Brief {
-                var q: query.Q(Brief, .one) = .init(allocator, params);
-                return q.run();
+            if (self.evolveFrom) |evolveFrom| {
+                try writer.print(", .evolveFrom = {s}", .{evolveFrom});
             }
 
-            pub fn iterator(allocator: Allocator, params: Params) query.Iterator(Brief) {
-                return .init(allocator, params);
+            if (self.description) |description| {
+                try writer.print(", .description = {s}", .{description});
             }
 
-            pub fn format(self: Brief, writer: *Writer) Writer.Error!void {
-                try writer.print("{{ .id = {s}, .localId = {s}, .name = {s}", .{ self.id, self.localId, self.name });
-
-                if (self.image) |image| {
-                    try writer.print(", .image = {f}", .{image});
-                }
-
-                try writer.print(" }}", .{});
+            if (self.level) |level| {
+                try writer.print(", .level = {s}", .{level});
             }
-        };
 
-        pub fn jsonParse(
-            allocator: Allocator,
-            source: anytype,
-            options: ParseOptions,
-        ) ParseError(@TypeOf(source.*))!C {
-            // dummy type just to parse the category from the API's response
-            const Raw = struct {
-                category: Category(language),
-            };
-
-            // create an ephimeral scanner for the dummy type, not to mess original's state
-            var common_source: std.json.Scanner = .initCompleteInput(allocator, source.input);
-            defer common_source.deinit();
-
-            const common = try std.json.parseFromTokenSource(Raw, allocator, &common_source, options);
-            defer common.deinit();
-
-            switch (common.value.category) {
-                .Pokemon => {
-                    var pokemon = try std.json.parseFromTokenSource(Pokemon, allocator, source, options);
-                    meta.setArena(Pokemon, &pokemon.value, pokemon.arena);
-                    return .{ .pokemon = pokemon.value };
-                },
-                .Trainer => {
-                    var trainer = try std.json.parseFromTokenSource(Trainer, allocator, source, options);
-                    meta.setArena(Trainer, &trainer.value, trainer.arena);
-                    return .{ .trainer = trainer.value };
-                },
-                .Energy => {
-                    var energy = try std.json.parseFromTokenSource(Energy, allocator, source, options);
-                    meta.setArena(Energy, &energy.value, energy.arena);
-                    return .{ .energy = energy.value };
-                },
+            if (self.stage) |stage| {
+                try writer.print(", .stage = {s}", .{stage});
             }
-        }
 
-        pub fn format(self: C, writer: *Writer) Writer.Error!void {
-            try writer.print("{{ .{t} = ", .{self});
+            if (self.suffix) |suffix| {
+                try writer.print(", .suffix = {s}", .{suffix});
+            }
 
-            switch (self) {
-                .pokemon => |value| try writer.print("{f}", .{value}),
-                .trainer => |value| try writer.print("{f}", .{value}),
-                .energy => |value| try writer.print("{f}", .{value}),
+            if (self.item) |item| {
+                try writer.print(", .item = {f}", .{item});
+            }
+
+            if (self.abilities) |abilities| {
+                try writer.print(", .abilities = ", .{});
+                try fmt.printSlice(Ability, writer, "{f}", abilities);
+            }
+
+            if (self.attacks) |attacks| {
+                try writer.print(", .attacks = ", .{});
+                try fmt.printSlice(Attack, writer, "{f}", attacks);
+            }
+
+            if (self.weaknesses) |weaknesses| {
+                try writer.print(", .weaknesses = ", .{});
+                try fmt.printSlice(Effectiveness, writer, "{f}", weaknesses);
+            }
+
+            if (self.resistances) |resistances| {
+                try writer.print(", .resistances = ", .{});
+                try fmt.printSlice(Effectiveness, writer, "{f}", resistances);
+            }
+
+            if (self.retreat) |retreat| {
+                try writer.print(", .retreat = {d}", .{retreat});
             }
 
             try writer.print(" }}", .{});
         }
     };
-}
+
+    pub const Trainer = struct {
+        const T = @This();
+
+        id: []const u8,
+        localId: []const u8,
+        name: []const u8,
+        image: ?Image = null,
+        illustrator: ?[]const u8 = null,
+        rarity: ?[]const u8 = null,
+        set: Set.Brief,
+        variants: Variants,
+        variant_detailed: ?[]const VariantDetailed = null,
+        boosters: ?[]const Booster = null,
+        pricing: ?Pricing = null,
+        updated: []const u8,
+        legal: Legality,
+        regulationMark: ?[]const u8 = null,
+
+        //
+
+        // FIXME: these should be required (?)
+        effect: ?[]const u8 = null,
+        trainerType: ?[]const u8 = null,
+
+        pub fn format(self: T, writer: *Writer) Writer.Error!void {
+            try writer.print("{{ ", .{});
+
+            try Common.formatFields(self, writer);
+
+            if (self.effect) |effect| {
+                try writer.print(", .effect = {s}", .{effect});
+            }
+
+            if (self.trainerType) |trainerType| {
+                try writer.print(", .trainerType = {s}", .{trainerType});
+            }
+
+            try writer.print(" }}", .{});
+        }
+    };
+
+    pub const Energy = struct {
+        const E = @This();
+
+        id: []const u8,
+        localId: []const u8,
+        name: []const u8,
+        image: ?Image = null,
+        illustrator: ?[]const u8 = null,
+        rarity: ?[]const u8 = null,
+        set: Set.Brief,
+        variants: Variants,
+        variant_detailed: ?[]const VariantDetailed = null,
+        boosters: ?[]const Booster = null,
+        pricing: ?Pricing = null,
+        updated: []const u8,
+        legal: Legality,
+        regulationMark: ?[]const u8 = null,
+
+        //
+
+        effect: ?[]const u8 = null,
+        energyType: []const u8,
+
+        pub fn format(self: E, writer: *Writer) Writer.Error!void {
+            try writer.print("{{ ", .{});
+
+            try Common.formatFields(self, writer);
+
+            if (self.effect) |effect| {
+                try writer.print(", .effect = {s}", .{effect});
+            }
+
+            try writer.print(", .type = {s}", .{self.energyType});
+
+            try writer.print(" }}", .{});
+        }
+    };
+
+    pub fn get(allocator: Allocator, language: Language, params: query.Get) !std.json.Parsed(Card) {
+        var q: query.Query(Card, .one) = .init(allocator, params);
+        return q.run(language);
+    }
+
+    pub fn all(allocator: Allocator, language: Language, params: Brief.Params) query.Iterator(Brief) {
+        return Brief.iterator(allocator, language, params);
+    }
+
+    pub const Brief = struct {
+        pub const url = Card.url;
+        pub const Params = query.ParamsFor(Brief);
+
+        id: []const u8,
+        localId: []const u8,
+        name: []const u8,
+        image: ?Image = null,
+
+        pub fn get(allocator: Allocator, params: query.Get) !Brief {
+            var q: query.Query(Brief, .one) = .init(allocator, params);
+            return q.run();
+        }
+
+        pub fn iterator(allocator: Allocator, language: Language, params: Params) query.Iterator(Brief) {
+            return .init(allocator, language, params);
+        }
+
+        pub fn format(self: Brief, writer: *Writer) Writer.Error!void {
+            try writer.print("{{ .id = {s}, .localId = {s}, .name = {s}", .{ self.id, self.localId, self.name });
+
+            if (self.image) |image| {
+                try writer.print(", .image = {f}", .{image});
+            }
+
+            try writer.print(" }}", .{});
+        }
+    };
+
+    pub fn jsonParse(
+        allocator: Allocator,
+        source: anytype,
+        options: ParseOptions,
+    ) ParseError(@TypeOf(source.*))!Card {
+        // dummy type just to parse the category from the API's response
+        const Raw = struct {
+            category: Category, // TODO: fix
+        };
+
+        // create an ephimeral scanner for the dummy type, not to mess original's state
+        var common_source: std.json.Scanner = .initCompleteInput(allocator, source.input);
+        defer common_source.deinit();
+
+        const common = try std.json.parseFromTokenSource(Raw, allocator, &common_source, options);
+        defer common.deinit();
+
+        switch (common.value.category) {
+            .Pokemon => {
+                const pokemon = try std.json.parseFromTokenSource(Pokemon, allocator, source, options);
+                return .{ .pokemon = pokemon.value };
+            },
+            .Trainer => {
+                const trainer = try std.json.parseFromTokenSource(Trainer, allocator, source, options);
+                return .{ .trainer = trainer.value };
+            },
+            .Energy => {
+                const energy = try std.json.parseFromTokenSource(Energy, allocator, source, options);
+                return .{ .energy = energy.value };
+            },
+        }
+    }
+
+    pub fn format(self: Card, writer: *Writer) Writer.Error!void {
+        try writer.print("{{ .{t} = ", .{self});
+
+        switch (self) {
+            .pokemon => |pokemon| try writer.print("{f}", .{pokemon}),
+            .trainer => |trainer| try writer.print("{f}", .{trainer}),
+            .energy => |energy| try writer.print("{f}", .{energy}),
+        }
+
+        try writer.print(" }}", .{});
+    }
+};

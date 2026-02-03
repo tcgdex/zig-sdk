@@ -2,16 +2,12 @@
 
 const Language = @import("../language.zig").Language;
 
-pub fn Category(comptime language: Language) type {
-    return switch (language) {
-        .en => enum {
-            Pokemon,
-            Trainer,
-            Energy,
-        },
-        else => unreachable,
-    };
-}
+// TODO: support other languages
+pub const Category = enum {
+    Pokemon,
+    Trainer,
+    Energy,
+};
 
 // TODO: Implement language-specific enums at some point, so far just treat them as free text
 
