@@ -556,7 +556,7 @@ pub const Card = union(enum) {
     ) ParseError(@TypeOf(source.*))!Card {
         // dummy type just to parse the category from the API's response
         const Raw = struct {
-            category: Category, // TODO: fix
+            category: Category,
         };
 
         // create an ephimeral scanner for the dummy type, not to mess original's state
